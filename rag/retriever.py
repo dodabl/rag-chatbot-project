@@ -1,5 +1,4 @@
 import numpy as np
-from ingest import PDFIngestor
 from embedder import Embedder
 import faiss
 import json
