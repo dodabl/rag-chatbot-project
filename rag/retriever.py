@@ -1,9 +1,10 @@
 import numpy as np
 from embedder import Embedder
+from ingest import PDFIngestor
 import faiss
 import json
 class Retriever:
-    def __init__(self, chunks_path: str, index_path: str = "../vector_store/index.faiss"):
+    def __init__(self, chunks_path: str, index_path: str = f"../data/vector_store/index.faiss"):
         self.index_path = index_path
         self.chunks_path = chunks_path
 

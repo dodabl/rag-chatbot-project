@@ -6,7 +6,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import json
 
 class PDFIngestor:
-    INGRSTOR_N = 0
     def __init__(self, pdf_path: str, embedder: Embedder | None = None):
         self.pdf_path = pdf_path
         self.embedder = embedder or Embedder()
@@ -35,13 +34,11 @@ class PDFIngestor:
         chunks: list[str] = self.extract_chunks()
         embeddings: np.ndarray = self.embed_chunks(chunks)
         index: faiss.IndexFlatL2 = self.create_faiss_index(embeddings)
-
-        faiss.write_index(index, f"../data/vector_store/index_{PDFIngestor.INGRSTOR_N}.faiss")
-        with open(f"../data/vector_store/chunks_{PDFIngestor.INGRSTOR_N}.json", "w", encoding="utf-8") as f:
+        index_path = f"../data/vector_store/index.faiss"
+        chunks_path = f"../data/vector_store/chunks.json"
+        embeddings_path = f"../data/vector_store/embeddings.npy"
+        faiss.write_index(index, index_path)
+        with open(chunks_path, "w", encoding="utf-8") as f:
             json.dump(chunks, f, ensure_ascii=False, indent=2)
-        np.save(f"../data/vector_store/embeddings_{PDFIngestor.INGRSTOR_N}.npy", embeddings)
-        path_index = f"../data/vector_store/index_{PDFIngestor.INGRSTOR_N}.faiss"
-        path_chunks = f"../data/vector_store/chunks_{PDFIngestor.INGRSTOR_N}.json"
-        path_embeddings = f"../data/vector_store/embeddings_{PDFIngestor.INGRSTOR_N}.npy"
-        PDFIngestor.INGRSTOR_N += 1
-        return path_chunks, path_embeddings, path_index
+        np.save(embeddings_path, embeddings)
+        return chunks_path, embeddings_path, index_path
