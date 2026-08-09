@@ -1,11 +1,18 @@
 from fastapi import FastAPI, UploadFile
+from fastapi.responses import StreamingResponse
 from rag.ingest import PDFIngestor
 from rag.generator import Generator
 from pydantic import BaseModel
-import aiofiles
+from contextlib import asynccontextmanager
 from config import UPLOADS_DIR
+import aiofiles
 
 GENERATOR = Generator()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await GENERATOR.close()
 
 class Question(BaseModel):
     question: str
@@ -15,7 +22,7 @@ app = FastAPI()
 async def ping():
     return {"status": "ok"}
 
-@app.post("/upload/")
+@app.post("/upload")
 async def upload_file(file: UploadFile) -> dict[str, str]:
     if not file.filename:
         return {"status": "error"}
@@ -36,10 +43,8 @@ async def upload_file(file: UploadFile) -> dict[str, str]:
         "index-path": str(index)
         }
 @app.post("/chat")
-async def ask_question(question: Question) -> dict[str, list[str] | str]:
-    response, chunks = await GENERATOR.generate(question.question)
-    return {
-        "status": "ok",
-        "chunks": chunks,
-        "response": response
-    }
+async def ask_question(question: Question) -> StreamingResponse:
+    async def event_stream():
+        async for chunk in GENERATOR.generate_stream(question.question):
+            yield chunk
+    return StreamingResponse(event_stream(), media_type="text/plain")
