@@ -1,23 +1,25 @@
-from retriever import Retriever
+from .retriever import Retriever
 import requests
-API_GENERATE_URL = "http://localhost:11434/api/generate"
-
+from config import OLLAMA_API_GENERATE_URL
+from config import VECTOR_STORE_DIR
+from pathlib import Path
+import asyncio
 class Generator:
-    def __init__(self, chunks_path: str = "../data/vector_store/chunks.json"):
+    def __init__(self, chunks_path: Path = VECTOR_STORE_DIR / "chunks.json"):
         self.chunks_path = chunks_path
-    def get_retrieved_chunks(self, query: str) -> list[str]:
+    async def get_retrieved_chunks(self, query: str) -> list[str] | str:
         _retriever = Retriever(chunks_path=self.chunks_path)
-        retrieved_chunks = _retriever.retrieve(query=query)
+        retrieved_chunks = await _retriever.retrieve(query=query)
         return retrieved_chunks
-    def get_response(self, query: str) -> requests.Response:
-        retrieved_chunks = self.get_retrieved_chunks(query=query)
+    async def get_response(self, query: str) -> tuple[requests.Response, list[str] | str]:
+        retrieved_chunks = await self.get_retrieved_chunks(query=query)
         request_body = {
             "model": "llama3",
             "prompt": f"Generate response using only these text chunks: {retrieved_chunks}.\nprompt: {query}",
             "stream": False
         }
-        response = requests.post(API_GENERATE_URL, json=request_body)
-        return response
-    def generate(self, query: str) -> str:
-        response = self.get_response(query=query)
-        return response.json()["response"]
+        response = await asyncio.to_thread(requests.post, OLLAMA_API_GENERATE_URL, json=request_body)
+        return response, retrieved_chunks
+    async def generate(self, query: str) -> tuple[str, list[str] | str]:
+        response, chunks = await self.get_response(query=query)
+        return response.json()["response"], chunks
