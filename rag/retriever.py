@@ -15,7 +15,6 @@ class Retriever:
         index = await asyncio.to_thread(faiss.read_index, str(self.index_path))
         async with aiofiles.open(self.chunks_path, "r", encoding="utf-8") as f:
             content: str = await f.read()
-            await f.close()
         chunks = await asyncio.to_thread(json.loads, content)
         return index, chunks
     async def embed_query(self, query: str) -> np.ndarray:

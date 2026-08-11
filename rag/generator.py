@@ -8,7 +8,10 @@ import json
 class Generator:
     def __init__(self, chunks_path: Path = VECTOR_STORE_DIR / "chunks.json"):
         self.chunks_path = chunks_path
-        self.client = httpx.AsyncClient(timeout=None)
+        self.client = httpx.AsyncClient(
+            timeout=None,
+            limits=httpx.Limits(max_keepalive_connections=0)
+        )
 
 
     async def get_retrieved_chunks(self, query: str) -> list[str] | str:
@@ -25,14 +28,22 @@ class Generator:
             "keep_alive": "10m"
         }
         async with self.client.stream("POST", OLLAMA_API_GENERATE_URL, json=request_body) as response:
-            async for line in response.aiter_lines():
-                if not line:
-                    continue
-                chunk = json.loads(line)
-                if chunk.get("response"):
-                    yield chunk["response"]
-                if chunk.get("done"):
-                    break
-
+            for attempt in range(2):
+                yielded_anything = False
+                try: 
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        chunk = json.loads(line)
+                        if chunk.get("response"):
+                            yielded_anything = True
+                            yield chunk["response"]
+                        if chunk.get("done"):
+                            break
+                    return
+                except httpx.RemoteProtocolError as e:
+                    if attempt == 0 and not yielded_anything:
+                        continue
+                    raise
     async def close(self):
             await self.client.aclose()
