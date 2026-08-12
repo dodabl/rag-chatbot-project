@@ -6,7 +6,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import json
 import aiofiles
 import asyncio
-import os
 from pathlib import Path
 from config import VECTOR_STORE_DIR
 
