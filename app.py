@@ -1,15 +1,17 @@
 from fastapi import FastAPI, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from rag.ingest import PDFIngestor
 from rag.generator import Generator
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-from config import UPLOADS_DIR
 from config import BASE_DIR
+from up_manager import FileManager 
+import json
+import asyncio
 import aiofiles
 
 GENERATOR = Generator()
+MANAGER = FileManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,28 +27,26 @@ async def ping():
     return {"status": "ok"}
 
 @app.post("/upload")
-async def upload_file(file: UploadFile) -> dict[str, str]:
+async def upload_file(file: UploadFile) -> dict[str, bool | str]:
     if not file.filename:
         return {"status": "error"}
-    upload_path = UPLOADS_DIR / file.filename
-    async with aiofiles.open(upload_path, "wb") as f:
-        await f.write(await file.read())
-    ingestor = PDFIngestor(upload_path)
-    chunks, embeddings, index = await ingestor.ingest()
-
+    exists, file_path, index_dir = await MANAGER.store_file(file)
+    chunks = index_dir / "chunks.json"
+    index = index_dir / "index.faiss"
+    async with aiofiles.open(index_dir / "meta.json", "r") as f:
+        file_meta = json.loads(await f.read())
     return {
         "status": "ok",
-        "filename": f"{file.filename}",
-        "file-path": str(upload_path),
+        "exists": exists,
+        "filename": file_meta["filename"],
+        "file-path": str(file_path),
         "chunks-path": str(chunks),
-        "embeddings-path": str(embeddings),
         "index-path": str(index)
         }
 @app.post("/chat")
 async def ask_question(question: Question) -> StreamingResponse:
     async def event_stream():
         try:
-
             async for chunk in GENERATOR.generate_stream(question.question):
                 yield chunk
         except Exception as e:
