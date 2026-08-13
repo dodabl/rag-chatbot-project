@@ -26,8 +26,13 @@ class FileManager():
         file_id = self.get_file_id(file_content)
         file_path = UPLOADS_DIR / f"{file_id}.pdf"
         index_dir = VECTOR_STORE_DIR / file_id
+        chunks_path = index_dir / "chunks.json"
+        index_path = index_dir / "index.faiss"
+        meta_path = index_dir / "meta.json"
+        l = [chunks_path, index_path, meta_path]
         if file_path.is_file():
-            return True, file_path, index_dir
+            if not (False in [c.is_file() for c in l]):
+                return True, file_path, index_dir
         os.makedirs(index_dir, exist_ok=True)
         ingestor = PDFIngestor(file_id)
         async with aiofiles.open(file_path, "wb") as f:

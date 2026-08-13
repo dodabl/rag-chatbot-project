@@ -4,11 +4,11 @@ from fastapi.staticfiles import StaticFiles
 from rag.generator import Generator
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-from config import BASE_DIR
+from config import BASE_DIR, VECTOR_STORE_DIR
 from up_manager import FileManager 
 import json
-import asyncio
 import aiofiles
+import datetime
 
 GENERATOR = Generator()
 MANAGER = FileManager()
@@ -20,11 +20,45 @@ async def lifespan(app: FastAPI):
 
 class Question(BaseModel):
     question: str
+
+class DocumentSummary(BaseModel):
+    doc_id: str
+    filename: str
+    uploaded_at: datetime.datetime
+
+
 app = FastAPI()
 
 @app.get("/ping")
 async def ping():
     return {"status": "ok"}
+
+@app.get("/documents")
+async def get_documents()-> dict[str, list[DocumentSummary]]:
+    docs: list[DocumentSummary] = []
+    it = VECTOR_STORE_DIR.iterdir()
+    for element in it:
+        if not element.is_dir():
+            continue
+        meta = element / "meta.json"
+        try:
+            async with aiofiles.open(meta, 'r') as f:
+                meta_dict = json.loads(await f.read())
+            doc = DocumentSummary(
+                doc_id=element.name,
+                filename=meta_dict["filename"],
+                uploaded_at=meta_dict["uploaded_at"]
+            )
+            docs.append(doc)
+        except Exception:
+            print(f"[ERROR] missing meta.json file in directory [{element.name}]")
+            continue
+    return {
+        "documents": docs
+    }
+
+
+
 
 @app.post("/upload")
 async def upload_file(file: UploadFile) -> dict[str, bool | str]:

@@ -35,7 +35,7 @@ class PDFIngestor:
         await asyncio.to_thread(index.add, embeddings)
         return index
 
-    async def ingest(self) -> tuple[Path, Path]:
+    async def ingest(self):
         chunks: list[str] = await self.extract_chunks()
         embeddings: np.ndarray = await self.embed_chunks(chunks)
         index: faiss.IndexFlatL2 = await self.create_faiss_index(embeddings)
@@ -44,4 +44,3 @@ class PDFIngestor:
         await asyncio.to_thread(faiss.write_index, index, str(index_path))
         async with aiofiles.open(chunks_path, "w", encoding="utf-8") as f:
             await f.write(json.dumps(chunks, ensure_ascii=False, indent=2))
-        return chunks_path, index_path
