@@ -1,6 +1,8 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import asyncio
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class Embedder:
     _model: SentenceTransformer | None = None

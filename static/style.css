@@ -259,18 +259,9 @@ body{
     cursor: not-allowed;
 }
 
-@font-face{
-    font-family: 'tabler-icons';
-    src: url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/fonts/tabler-icons.woff2') format('woff2');
-}
 
 .ti{
     font-family: 'tabler-icons';
     font-style: normal;
     line-height: 1;
 }
-
-.ti-file::before{ content: "\f2f8";}
-.ti-upload::before{ content: "\f172";}
-.ti-arrow-up::before{ content: "\f114";}
-.ti-messages::before{ content: "\f4a0";}

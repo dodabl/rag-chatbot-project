@@ -7,13 +7,14 @@ from pathlib import Path
 import asyncio
 import aiofiles
 class Retriever:
-    def __init__(self, chunks_path: Path, index_path: Path = VECTOR_STORE_DIR / "index.faiss"):
-        self.index_path = index_path
-        self.chunks_path = chunks_path
+    def __init__(self, doc_id: str):
+        self.doc_id = doc_id
 
     async def load_index_chunks(self) -> tuple[faiss.Index, dict[int, str]]:
-        index = await asyncio.to_thread(faiss.read_index, str(self.index_path))
-        async with aiofiles.open(self.chunks_path, "r", encoding="utf-8") as f:
+        index_path = VECTOR_STORE_DIR / f"{self.doc_id}/index.faiss"
+        chunks_path = VECTOR_STORE_DIR / f"{self.doc_id}/chunks.json"
+        index = await asyncio.to_thread(faiss.read_index, str(index_path))
+        async with aiofiles.open(chunks_path, "r", encoding="utf-8") as f:
             content: str = await f.read()
         chunks = await asyncio.to_thread(json.loads, content)
         return index, chunks

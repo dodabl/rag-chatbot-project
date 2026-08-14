@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from fastapi import UploadFile
-from config import UPLOADS_DIR, VECTOR_STORE_DIR
+from config import UPLOADS_DIR, VECTOR_STORE_DIR, CHAT_HISTORY_DIR
 from rag.ingest import PDFIngestor
 import hashlib
 import aiofiles
@@ -21,24 +21,25 @@ class FileManager():
         }
         return meta_dict
 
-    async def store_file(self, file: UploadFile)-> tuple[bool, Path, Path]:
+    async def store_file(self, file: UploadFile)-> tuple[bool, str, Path, Path]:
         file_content = await file.read()
+        exists = False
         file_id = self.get_file_id(file_content)
         file_path = UPLOADS_DIR / f"{file_id}.pdf"
         index_dir = VECTOR_STORE_DIR / file_id
-        chunks_path = index_dir / "chunks.json"
-        index_path = index_dir / "index.faiss"
-        meta_path = index_dir / "meta.json"
-        l = [chunks_path, index_path, meta_path]
+        history_path = CHAT_HISTORY_DIR / f"{file_id}.json"
         if file_path.is_file():
-            if not (False in [c.is_file() for c in l]):
-                return True, file_path, index_dir
+            exists = True
+            return exists, file_id, file_path, index_dir
+        meta_path = index_dir / "meta.json"
         os.makedirs(index_dir, exist_ok=True)
         ingestor = PDFIngestor(file_id)
         async with aiofiles.open(file_path, "wb") as f:
             await f.write(file_content)
         meta_dict = self.get_meta_dict(file)
         await ingestor.ingest()
-        async with aiofiles.open((index_dir / "meta.json"), "w") as f:
+        async with aiofiles.open(meta_path, "w") as f:
             await f.write(json.dumps(meta_dict))
-        return False, file_path, index_dir
+        async with aiofiles.open(history_path, "wb") as f:
+            await f.write(json.dumps({"history": []}).encode("utf-8"))
+        return exists, file_id, file_path, index_dir

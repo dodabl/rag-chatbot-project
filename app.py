@@ -1,17 +1,19 @@
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from rag.generator import Generator
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-from config import BASE_DIR, VECTOR_STORE_DIR
+from config import BASE_DIR, VECTOR_STORE_DIR, CHAT_HISTORY_DIR
 from up_manager import FileManager 
 import json
 import aiofiles
 import datetime
+from fastapi.templating import Jinja2Templates
 
 GENERATOR = Generator()
 MANAGER = FileManager()
+templates = Jinja2Templates(directory="templates")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,18 +28,21 @@ class DocumentSummary(BaseModel):
     filename: str
     uploaded_at: datetime.datetime
 
+class Message(BaseModel):
+    role: str | None
+    text: str | None
 
 app = FastAPI()
 
-@app.get("/ping")
-async def ping():
-    return {"status": "ok"}
+@app.get("/")
+async def home(request: Request):
+    return templates.TemplateResponse(request, "index.html", {})
 
 @app.get("/documents")
 async def get_documents()-> dict[str, list[DocumentSummary]]:
     docs: list[DocumentSummary] = []
-    it = VECTOR_STORE_DIR.iterdir()
-    for element in it:
+    itr = VECTOR_STORE_DIR.iterdir()
+    for element in itr:
         if not element.is_dir():
             continue
         meta = element / "meta.json"
@@ -57,6 +62,19 @@ async def get_documents()-> dict[str, list[DocumentSummary]]:
         "documents": docs
     }
 
+@app.get("/chat/{doc_id}/history")
+async def get_chat_history(doc_id: str) -> dict[str, list[Message]]:
+    history = CHAT_HISTORY_DIR / f"{doc_id}.json"
+    if history.is_file() and history.stat().st_size > 0:
+        async with aiofiles.open(history, "r") as f:
+            content = await f.read()
+        try:
+            data: list[Message] = json.loads(content)["history"]
+        except json.JSONDecodeError:
+            data: list[Message] = []  # or {} — match whatever your actual stored shape is
+    else:
+        data = []
+    return {"history": data}
 
 
 
@@ -64,7 +82,7 @@ async def get_documents()-> dict[str, list[DocumentSummary]]:
 async def upload_file(file: UploadFile) -> dict[str, bool | str]:
     if not file.filename:
         return {"status": "error"}
-    exists, file_path, index_dir = await MANAGER.store_file(file)
+    exists, doc_id, file_path, index_dir = await MANAGER.store_file(file)
     chunks = index_dir / "chunks.json"
     index = index_dir / "index.faiss"
     async with aiofiles.open(index_dir / "meta.json", "r") as f:
@@ -72,20 +90,34 @@ async def upload_file(file: UploadFile) -> dict[str, bool | str]:
     return {
         "status": "ok",
         "exists": exists,
+        "doc_id": doc_id,
         "filename": file_meta["filename"],
         "file-path": str(file_path),
         "chunks-path": str(chunks),
         "index-path": str(index)
         }
-@app.post("/chat")
-async def ask_question(question: Question) -> StreamingResponse:
+@app.post("/chat/{doc_id}")
+async def ask_question(doc_id: str, question: Question) -> StreamingResponse:
     async def event_stream():
         try:
-            async for chunk in GENERATOR.generate_stream(question.question):
+            async for chunk in GENERATOR.generate_stream(doc_id, question.question):
                 yield chunk
         except Exception as e:
             print(f"error during streaming: {e}")
             yield "\n\n[error: the response was interrupted. please try again.]"
     return StreamingResponse(event_stream(), media_type="text/plain")
+
+@app.post("/chat/{doc_id}/history")
+async def update_chat_history(doc_id: str,message: Message):
+    history_file = CHAT_HISTORY_DIR / f"{doc_id}.json"
+    msg_json = {
+        "role": message.role,
+        "text": message.text
+    }
+    async with aiofiles.open(history_file, "r") as f:
+        history = json.loads(await f.read())
+    history["history"].append(msg_json)
+    async with aiofiles.open(history_file, "w") as f:
+        await f.write(json.dumps(history))
+    return {"status": "ok"}
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static-assets")
-app.mount("/", StaticFiles(directory=str(BASE_DIR / "templates"), html=True), name="static")

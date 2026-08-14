@@ -6,7 +6,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import json
 import aiofiles
 import asyncio
-from pathlib import Path
 from config import UPLOADS_DIR, VECTOR_STORE_DIR
 
 class PDFIngestor:
