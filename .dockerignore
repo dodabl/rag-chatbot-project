@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environments (the container builds its own)
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# FAISS / vector store data (regenerated at runtime, not baked into the image)
+*.faiss
+*.index
+/data/vector_store/
+/data/index/
+
+# Ollama local data
+.ollama/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs and tests (not needed at runtime)
+README.md
+*.md
+tests/
+.github/
+
+# Compose files (not needed inside the image itself)
+docker-compose.yml
+docker-compose.override.yml
