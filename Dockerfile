@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=builder /app/.venv .venv
 ENV PATH="/app/.venv/bin:$PATH"
 COPY . .
-RUN useradd -u 8888 appuser && chown -R appuser:appuser /app
+RUN useradd -m -u 8888 appuser && chown -R appuser:appuser /app /home/appuser
 USER appuser
 EXPOSE 8000
 CMD ["fastapi", "run", "app.py", "--host", "0.0.0.0", "--port", "8000"]
