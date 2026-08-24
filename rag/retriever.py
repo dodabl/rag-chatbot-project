@@ -3,7 +3,6 @@ from .embedder import Embedder
 import faiss
 import json
 from config import VECTOR_STORE_DIR
-from pathlib import Path
 import asyncio
 import aiofiles
 class Retriever:
