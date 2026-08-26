@@ -101,8 +101,7 @@ fileInput.addEventListener("change", async () => {
         }else{
             uploadStatus.textContent = "already existing";
         }
-        activeDoc = document.getElementById(data.doc_id);
-        activeDoc.classList.add("active");
+        document.getElementById(data.doc_id).classList.add("active");
 
         
         setTimeout(() => (uploadStatus.textContent=""), 2000);

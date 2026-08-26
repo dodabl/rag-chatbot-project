@@ -1,4 +1,5 @@
 FROM python:3.13.7-slim AS builder
+COPY . /app
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 RUN pip install --upgrade pip
