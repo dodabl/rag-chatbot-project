@@ -7,14 +7,14 @@ const fileInput = document.getElementById("file-input");
 const uploadStatus = document.getElementById("upload-status");
 const questionInput = document.getElementById("question-input");
 const sendBtn = document.getElementById("send-btn");
-let activeDoc;
+var activeDoc;
 function renderDocItem(doc_id, filename){
     const li = document.createElement("li");
     li.id = doc_id;
     li.className = "doc-item active hide-scrollbar";
     li.innerHTML = `<span class="dot"></span><span>${filename}</span>`;
     docList.appendChild(li);
-    return li;
+    activeDoc = doc_id;
 }
 docList.addEventListener("click", async (event) => {
     const item = event.target.closest(".doc-item");
@@ -24,14 +24,14 @@ docList.addEventListener("click", async (event) => {
     item.classList.add("active");
     emptyState.style.display = "none";
     loadChatHistory(item.id);
-    activeDoc = item;
+    activeDoc = item.id;
 });
 async function updateChatHistory(role, text){
     data = JSON.stringify({
         role: role,
         text: text
     });
-    const response = await fetch(`/chat/${activeDoc.id}/history`, {
+    const response = await fetch(`/chat/${activeDoc}/history`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: data
@@ -93,15 +93,16 @@ fileInput.addEventListener("change", async () => {
         });
         if (!response.ok) throw new Error(`upload failed (${response.status})`);
         const data = await response.json();
+        docList.querySelectorAll(".doc-item").forEach(el => el.classList.remove("active"));
         if (!data.exists){
-            docList.querySelectorAll(".doc-item").forEach(el => el.classList.remove("active"));
             renderDocItem(data.doc_id, data.filename);
             uploadStatus.textContent = "ready";
 
         }else{
             uploadStatus.textContent = "already existing";
+            document.getElementById(data.doc_id).classList.add("active");
+            activeDoc = data.doc_id;
         }
-        document.getElementById(data.doc_id).classList.add("active");
 
         
         setTimeout(() => (uploadStatus.textContent=""), 2000);
@@ -114,6 +115,7 @@ fileInput.addEventListener("change", async () => {
         uploadStatus.textContent = "upload failed";
         console.error(err);
     }
+    console.log(activeDoc);
 
     fileInput.value = "";
 });
@@ -124,7 +126,7 @@ async function sendQuestion(){
     if (!question) return;
 
     questionInput.value="";
-    question.disabled = true;
+    questionInput.disabled = true;
     sendBtn.disabled = true;
 
     addMessage("user", question);
@@ -135,7 +137,7 @@ async function sendQuestion(){
     chatScroll.scrollTop = chatScroll.scrollHeight;
     await updateChatHistory("user", question);
     try{
-        const response = await fetch(`/chat/${activeDoc.id}`, {
+        const response = await fetch(`/chat/${activeDoc}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question })           

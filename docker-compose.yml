@@ -1,6 +1,7 @@
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.34.0-rc1-rocm
+    container_name: ollama
     ports:
       - "11434:11434"
     volumes:
@@ -13,7 +14,8 @@ services:
       retries: 10
 
   ollama-init:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.34.0-rc1-rocm
+    container_name: ollama-init
     depends_on:
       ollama:
         condition: service_healthy
@@ -21,6 +23,7 @@ services:
     restart: "no"
 
   app:
+    container_name: app
     build: .
     volumes:
       - app_data:/app/data
