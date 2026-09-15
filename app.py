@@ -5,11 +5,16 @@ from rag.generator import Generator
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from config import BASE_DIR, VECTOR_STORE_DIR, CHAT_HISTORY_DIR
-from up_manager import FileManager 
+from upload_config import FileManager 
 import json
 import aiofiles
 import datetime
 from fastapi.templating import Jinja2Templates
+from logging_config import setup_logging, get_logger, Timer
+import uuid
+
+setup_logging()
+logger = get_logger(__name__)
 
 GENERATOR = Generator()
 MANAGER = FileManager()
@@ -33,6 +38,23 @@ class Message(BaseModel):
     text: str | None
 
 app = FastAPI()
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    async with Timer() as timer:
+        response = await call_next(request)
+    logger.info(
+        "Request handled",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "url": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": timer.elapsed_ms
+        }
+    )
+    return response
 
 @app.get("/")
 async def home(request: Request):

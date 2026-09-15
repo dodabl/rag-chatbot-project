@@ -3,6 +3,9 @@ from config import OLLAMA_API_GENERATE_URL, MODEL
 import httpx
 from typing import AsyncGenerator
 import json
+from logging_config import get_logger, Timer
+logger = get_logger(__name__)
+
 class Generator:
     def __init__(self): 
         self.client = httpx.AsyncClient(
@@ -24,14 +27,22 @@ class Generator:
             "stream": True,
             "keep_alive": "10m"
         }
-        async with self.client.stream("POST", OLLAMA_API_GENERATE_URL, json=request_body) as response:
-            async for line in response.aiter_lines():
-                if not line:
-                    continue
-                chunk = json.loads(line)
-                if chunk.get("response"):
-                    yield chunk["response"]
-                if chunk.get("done"):
-                    break
+        async with Timer() as timer:
+            async with self.client.stream("POST", OLLAMA_API_GENERATE_URL, json=request_body) as response:
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+                    chunk = json.loads(line)
+                    if chunk.get("response"):
+                        yield chunk["response"]
+                    if chunk.get("done"):
+                        break
+        logger.info(
+            "Generation complete",
+            extra={
+                "duration_ms": timer.elapsed_ms,
+                "model": MODEL,
+            }
+        )
     async def close(self):
             await self.client.aclose()
