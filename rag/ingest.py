@@ -7,7 +7,9 @@ import json
 import aiofiles
 import asyncio
 from config import UPLOADS_DIR, VECTOR_STORE_DIR
+from logging_config import get_logger, Timer
 
+logger = get_logger(__name__)
 class PDFIngestor:
     def __init__(self, doc_id: str, embedder: Embedder | None = None):
         self.doc_id = doc_id
@@ -35,11 +37,52 @@ class PDFIngestor:
         return index
 
     async def ingest(self):
-        chunks: list[str] = await self.extract_chunks()
-        embeddings: np.ndarray = await self.embed_chunks(chunks)
-        index: faiss.IndexFlatL2 = await self.create_faiss_index(embeddings)
+        async with Timer() as timer:
+            chunks: list[str] = await self.extract_chunks()
+            logger.info(
+                "chunks extracted",
+                extra={
+                    "num_chunks": len(chunks)
+                }
+            )
+
+            embeddings: np.ndarray = await self.embed_chunks(chunks)
+            logger.info(
+                "chunks embedded",
+                extra={
+                    "embedding_dim": embeddings.shape[1]
+                }
+            )
+
+            index: faiss.IndexFlatL2 = await self.create_faiss_index(embeddings)
+            logger.info(
+                "faiss index created",
+                extra={
+                    "num_vectors": index.ntotal
+                }
+            )
+        logger.info(
+            "Ingestion complete",
+            extra={
+                "duration_ms": timer.elapsed_ms,
+                "doc_id": self.doc_id
+            }
+        )
+
         index_path = VECTOR_STORE_DIR / self.doc_id / "index.faiss"
         chunks_path = VECTOR_STORE_DIR / self.doc_id / "chunks.json"
         await asyncio.to_thread(faiss.write_index, index, str(index_path))
+        logger.info(
+            "faiss index written to disk",
+            extra={
+                "index_path": index_path
+            }
+        )
         async with aiofiles.open(chunks_path, "w", encoding="utf-8") as f:
             await f.write(json.dumps(chunks, ensure_ascii=False, indent=2))
+        logger.info(
+            "chunks written to disk",
+            extra={
+                "chunks_path": chunks_path
+            }
+        )
