@@ -1,5 +1,5 @@
 from .retriever import Retriever
-from config import OLLAMA_API_GENERATE_URL, MODEL
+from config import OLLAMA_HOST, OLLAMA_API_GENERATE_URL, MODEL
 import httpx
 from typing import AsyncGenerator
 import json
@@ -48,5 +48,25 @@ class Generator:
                 "model": MODEL,
             }
         )
+    async def ollama_check(self) -> bool:
+        try:
+            response = await self.client.get(f"{OLLAMA_HOST}/api/version")
+            logger.debug(
+                "Ollama API running",
+                extra={
+                    "ollama_host": OLLAMA_HOST,
+                    "ollama_version": response.json().get("version")
+                }
+            )
+            return response.status_code == 200
+        except Exception:
+            logger.error(
+                "Failed to connect to Ollama API",
+                extra={
+                    "ollama_host": OLLAMA_HOST
+                }
+            )
+            return False
+
     async def close(self):
             await self.client.aclose()
