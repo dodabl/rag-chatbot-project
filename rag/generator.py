@@ -27,8 +27,10 @@ class Generator:
             "stream": True,
             "keep_alive": "10m"
         }
+        n_tokens = 0
         async with Timer() as timer:
             async with self.client.stream("POST", OLLAMA_API_GENERATE_URL, json=request_body) as response:
+
                 async for line in response.aiter_lines():
                     if not line:
                         continue
@@ -36,11 +38,13 @@ class Generator:
                     if chunk.get("response"):
                         yield chunk["response"]
                     if chunk.get("done"):
+                        n_tokens = chunk.get("eval_count", 0)
                         break
         logger.info(
             "Generation complete",
             extra={
                 "duration_ms": timer.elapsed_ms,
+                "n_tokens": n_tokens,
                 "model": MODEL,
             }
         )
