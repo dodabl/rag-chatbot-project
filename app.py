@@ -56,6 +56,11 @@ async def log_requests(request: Request, call_next):
     )
     return response
 
+@app.get("/health")
+async def health_check():
+    healthy: bool = await GENERATOR.ollama_check()
+    return {"status_code": 200} if healthy else {"status_code": 503}
+ 
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse(request, "index.html", {})
