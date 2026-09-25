@@ -25,10 +25,19 @@ class Retriever:
             }
         )
         async with Timer() as t:
-            async with aiofiles.open(chunks_path, "r", encoding="utf-8") as f:
-                content: str = await f.read()
-            chunks = await asyncio.to_thread(json.loads, content)
-
+            try:
+                async with aiofiles.open(chunks_path, "r", encoding="utf-8") as f:
+                    content: str = await f.read()
+                chunks = await asyncio.to_thread(json.loads, content)
+            except Exception as e:
+                logger.error(
+                    "Failed to load chunks",
+                    extra={
+                        "doc_id": self.doc_id,
+                        "path": chunks_path
+                    }
+                )
+                raise e
         logger.info(
             "chunks loaded",
             extra={

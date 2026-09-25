@@ -40,6 +40,8 @@ def setup_logging(level: int = logging.INFO) -> None:
         uv_logger = logging.getLogger(name)
         uv_logger.handlers.clear()
         uv_logger.propagate = True
+
+        
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
