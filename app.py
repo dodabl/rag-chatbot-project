@@ -83,8 +83,14 @@ async def get_documents()-> dict[str, list[DocumentSummary]]:
             )
             docs.append(doc)
         except Exception:
-            print(f"[ERROR] missing meta.json file in directory [{element.name}]")
+            # print(f"[ERROR] missing meta.json file in directory [{element.name}]")
+            logger.error(
+                f"missing meta.json file in directory [{element.name}]"
+            )
             continue
+        logger.info(
+            "Documents loading complete"
+        )
     return {
         "documents": docs
     }
@@ -97,10 +103,17 @@ async def get_chat_history(doc_id: str) -> dict[str, list[Message]]:
             content = await f.read()
         try:
             data: list[Message] = json.loads(content)["history"]
-        except json.JSONDecodeError:
-            data: list[Message] = []  # or {} — match whatever your actual stored shape is
+            logger.info("chat history loaded with success")
+        except json.JSONDecodeError as e:
+            data: list[Message] = []
+            logger.error(
+                f"error during chat history loading: [{e}]"
+            )
     else:
         data = []
+        logger.info(
+            "no chat history yet (empty)"
+        )
     return {"history": data}
 
 
@@ -112,17 +125,38 @@ async def upload_file(file: UploadFile) -> dict[str, bool | str]:
     exists, doc_id, file_path, index_dir = await MANAGER.store_file(file)
     chunks = index_dir / "chunks.json"
     index = index_dir / "index.faiss"
-    async with aiofiles.open(index_dir / "meta.json", "r") as f:
-        file_meta = json.loads(await f.read())
-    return {
-        "status": "ok",
-        "exists": exists,
-        "doc_id": doc_id,
-        "filename": file_meta["filename"],
-        "file-path": str(file_path),
-        "chunks-path": str(chunks),
-        "index-path": str(index)
+    try:
+        async with aiofiles.open(index_dir / "meta.json", "r") as f:
+            file_meta = json.loads(await f.read())
+        logger.info(
+            "file meta.json read with success"
+        )
+        result = {
+                "status": "ok",
+                "exists": exists,
+                "doc_id": doc_id,
+                "filename": file_meta["filename"],
+                "file-path": str(file_path),
+                "chunks-path": str(chunks),
+                "index-path": str(index)
+                }
+    except Exception as e:
+        logger.error(
+            "could not read file: meta.json"
+        )
+        result = {
+            "status": "error",
+            "exists": exists,
+            "doc_id": doc_id,
+            "file_path": file_path,
+            "chunks-path": str(chunks),
+            "index-path": str(index)
         }
+    finally:
+        return result
+
+
+
 @app.post("/chat/{doc_id}")
 async def ask_question(doc_id: str, question: Question) -> StreamingResponse:
     async def event_stream():
@@ -130,7 +164,9 @@ async def ask_question(doc_id: str, question: Question) -> StreamingResponse:
             async for chunk in GENERATOR.generate_stream(doc_id, question.question):
                 yield chunk
         except Exception as e:
-            print(f"error during streaming: {e}")
+            logger.error(
+                f"error during streaming: {e}"
+            )
             yield "\n\n[error: the response was interrupted. please try again.]"
     return StreamingResponse(event_stream(), media_type="text/plain")
 
@@ -141,10 +177,17 @@ async def update_chat_history(doc_id: str,message: Message):
         "role": message.role,
         "text": message.text
     }
-    async with aiofiles.open(history_file, "r") as f:
-        history = json.loads(await f.read())
-    history["history"].append(msg_json)
-    async with aiofiles.open(history_file, "w") as f:
-        await f.write(json.dumps(history))
-    return {"status": "ok"}
+    try:
+        async with aiofiles.open(history_file, "r") as f:
+            history = json.loads(await f.read())
+    except Exception:
+        logger.error(
+            "could not read chat history file"
+        )
+        history = {"history": []}
+    finally:
+        history["history"].append(msg_json)
+        async with aiofiles.open(history_file, "w") as f:
+            await f.write(json.dumps(history))
+        return {"status": "ok"}
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static-assets")

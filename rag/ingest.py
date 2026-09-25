@@ -10,14 +10,30 @@ from config import UPLOADS_DIR, VECTOR_STORE_DIR
 from logging_config import get_logger, Timer
 
 logger = get_logger(__name__)
+EMBEDDER = Embedder()
 class PDFIngestor:
-    def __init__(self, doc_id: str, embedder: Embedder | None = None):
+    def __init__(self, doc_id: str | None = None):
         self.doc_id = doc_id
-        self.embedder = embedder or Embedder()
+
+
+    def set_doc_id(self, doc_id: str):
+        self.doc_id = doc_id
+
+
     async def extract_chunks(self) -> list[str]:
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         path = UPLOADS_DIR / f"{self.doc_id}.pdf"
-        reader = await asyncio.to_thread(PdfReader, path)
+        try:
+            reader = await asyncio.to_thread(PdfReader, path)
+        except Exception as e:
+            logger.error(
+                "Failed to read PDF file",
+                extra={
+                    "doc_id": self.doc_id,
+                    "path": path
+                }
+            )
+            raise e
         full_text: str = ""
         for page in reader.pages:
             text = page.extract_text()
@@ -26,15 +42,18 @@ class PDFIngestor:
             full_text += text
         chunks: list[str] = await asyncio.to_thread(text_splitter.split_text, full_text)
         return chunks
+
     
     async def embed_chunks(self, chunks: list[str] | str) -> np.ndarray:
-        embeddings: np.ndarray = await self.embedder.encode(chunks)
+        embeddings: np.ndarray = await EMBEDDER.encode(chunks)
         return embeddings
+
 
     async def create_faiss_index(self, embeddings: np.ndarray) -> faiss.IndexFlatL2:
         index = await asyncio.to_thread(faiss.IndexFlatL2, embeddings.shape[1])
         await asyncio.to_thread(index.add, embeddings)
         return index
+
 
     async def ingest(self):
         async with Timer() as timer:
@@ -69,8 +88,8 @@ class PDFIngestor:
             }
         )
 
-        index_path = VECTOR_STORE_DIR / self.doc_id / "index.faiss"
-        chunks_path = VECTOR_STORE_DIR / self.doc_id / "chunks.json"
+        index_path = VECTOR_STORE_DIR / str(self.doc_id) / "index.faiss"
+        chunks_path = VECTOR_STORE_DIR / str(self.doc_id) / "chunks.json"
         await asyncio.to_thread(faiss.write_index, index, str(index_path))
         logger.info(
             "faiss index written to disk",

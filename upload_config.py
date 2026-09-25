@@ -9,10 +9,8 @@ import json
 import datetime
 from logging_config import get_logger, Timer
 logger = get_logger(__name__)
-
+INGESTOR = PDFIngestor()
 class FileManager():
-    def __init__(self):
-        pass
     def get_file_id(self, file_content: bytes) -> str:
         return hashlib.sha256(file_content).hexdigest()[:12]
     def get_meta_dict(self, file: UploadFile) -> dict[str, datetime.datetime | int | str]:
@@ -52,7 +50,7 @@ class FileManager():
                 return exists, file_id, file_path, index_dir
             meta_path = index_dir / "meta.json"
             os.makedirs(index_dir, exist_ok=True)
-            ingestor = PDFIngestor(file_id)
+            INGESTOR.set_doc_id(file_id)
             async with aiofiles.open(file_path, "wb") as f:
                 await f.write(file_content)
             logger.info(
@@ -64,7 +62,7 @@ class FileManager():
             )
 
             meta_dict = self.get_meta_dict(file)
-            await ingestor.ingest()
+            await INGESTOR.ingest()
             async with aiofiles.open(meta_path, "w") as f:
                 await f.write(json.dumps(meta_dict))
             logger.info(
