@@ -22,6 +22,8 @@ class Embedder:
                 "Model loaded successfully."
             )
     async def encode(self, texts: list[str] | str) -> np.ndarray:
+        if texts == "":
+            raise ValueError("empty string")
         embeddings: np.ndarray = await asyncio.to_thread(
             self._model.encode,
             texts,
