@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 from fastapi import UploadFile
 from config import UPLOADS_DIR, VECTOR_STORE_DIR, CHAT_HISTORY_DIR
-from rag.ingest import PDFIngestor
+from rag import PDFIngestor
 import hashlib
 import aiofiles
 import json
@@ -10,9 +10,21 @@ import datetime
 from logging_config import get_logger, Timer
 logger = get_logger(__name__)
 INGESTOR = PDFIngestor()
+
 class FileManager():
     def get_file_id(self, file_content: bytes) -> str:
-        return hashlib.sha256(file_content).hexdigest()[:12]
+        try:
+            id = hashlib.sha256(file_content).hexdigest()[:12]
+            logger.debug(
+                "file id generated"
+            )
+            return id
+        except Exception:
+            logger.error(
+                "could not generate file id"
+            )
+            raise
+
     def get_meta_dict(self, file: UploadFile) -> dict[str, datetime.datetime | int | str]:
         meta_dict = {
             "filename": file.filename,
@@ -23,14 +35,20 @@ class FileManager():
 
     async def store_file(self, file: UploadFile)-> tuple[bool, str, Path, Path]:
         async with Timer() as timer:
-            file_content = await file.read()
-            logger.info(
-                "file read from upload",
-                extra={
-                    "pdfname": file.filename,
-                    "size": len(file_content)
-                }
-            )
+            try:
+                file_content = await file.read()
+                logger.info(
+                    "file read from upload",
+                    extra={
+                        "pdfname": file.filename,
+                        "size": len(file_content)
+                    }
+                )
+            except Exception:
+                logger.error(
+                    "could not read file contents"
+                )
+                raise
 
             exists = False
             file_id = self.get_file_id(file_content)
@@ -51,37 +69,52 @@ class FileManager():
             meta_path = index_dir / "meta.json"
             os.makedirs(index_dir, exist_ok=True)
             INGESTOR.set_doc_id(file_id)
-            async with aiofiles.open(file_path, "wb") as f:
-                await f.write(file_content)
-            logger.info(
-                "file written to disk",
-                extra={
-                    "file_path": str(file_path),
-                    "index_dir": str(index_dir)
-                }
-            )
-
-            meta_dict = self.get_meta_dict(file)
-            await INGESTOR.ingest()
-            async with aiofiles.open(meta_path, "w") as f:
-                await f.write(json.dumps(meta_dict))
-            logger.info(
-                "meta.json written to disk",
-                extra={
-                    "meta_path": str(meta_path)
-                }
-            )
-            if not history_path.is_file():
-                async with aiofiles.open(history_path, "wb") as f:
-                    await f.write(json.dumps({"history": []}).encode("utf-8"))
+            try:
+                async with aiofiles.open(file_path, "wb") as f:
+                    await f.write(file_content)
                 logger.info(
-                    "chat history initialized",
+                    "file written to disk",
                     extra={
-                        "history_path": str(history_path)
+                        "file_path": str(file_path),
+                        "index_dir": str(index_dir)
                     }
                 )
+            except Exception as e:
+                if file_path.is_file():
+                    os.remove(file_path)
+                logger.error(
+                    "could not create file"
+                )
+                raise e
+
+            meta_dict = self.get_meta_dict(file)
+            try:
+                await INGESTOR.ingest()
+
+                async with aiofiles.open(meta_path, "w") as f:
+                    await f.write(json.dumps(meta_dict))
+                logger.info(
+                    "meta.json written to disk",
+                    extra={
+                        "meta_path": str(meta_path)
+                    }
+                )
+            except Exception as e:
+                os.remove(file_path)
+                os.rmdir(index_dir)
+                if meta_path.is_file():
+                    os.remove(meta_path)
+                raise e
+            async with aiofiles.open(history_path, "wb") as f:
+                await f.write(json.dumps({"history": []}).encode("utf-8"))
+            logger.info(
+                "chat history initialized",
+                extra={
+                    "history_path": str(history_path)
+                }
+            )
         logger.info(
-            "file upload",
+            "file uploaded",
             extra={
                 "file_id": file_id,
                 "file_path": str(file_path),

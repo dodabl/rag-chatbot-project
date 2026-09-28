@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from rag.generator import Generator
+from rag import Generator
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from config import BASE_DIR, VECTOR_STORE_DIR, CHAT_HISTORY_DIR
@@ -13,15 +13,16 @@ from fastapi.templating import Jinja2Templates
 from logging_config import setup_logging, get_logger, Timer
 import uuid
 
+
 setup_logging()
 logger = get_logger(__name__)
-
-GENERATOR = Generator()
-MANAGER = FileManager()
+GENERATOR: Generator = Generator()
+MANAGER: FileManager = FileManager()
 templates = Jinja2Templates(directory="templates")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await GENERATOR.ollama_check()
     yield
     await GENERATOR.close()
 
@@ -37,7 +38,7 @@ class Message(BaseModel):
     role: str | None
     text: str | None
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -58,9 +59,11 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/health")
 async def health_check():
-    healthy: bool = await GENERATOR.ollama_check()
-    return {"status_code": 200} if healthy else {"status_code": 503}
- 
+    try:
+        await GENERATOR.ollama_check()
+        return {"status_code": 200}
+    except Exception as e:
+        raise e
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse(request, "index.html", {})
@@ -83,7 +86,6 @@ async def get_documents()-> dict[str, list[DocumentSummary]]:
             )
             docs.append(doc)
         except Exception:
-            # print(f"[ERROR] missing meta.json file in directory [{element.name}]")
             logger.error(
                 f"missing meta.json file in directory [{element.name}]"
             )
@@ -98,23 +100,39 @@ async def get_documents()-> dict[str, list[DocumentSummary]]:
 @app.get("/chat/{doc_id}/history")
 async def get_chat_history(doc_id: str) -> dict[str, list[Message]]:
     history = CHAT_HISTORY_DIR / f"{doc_id}.json"
-    if history.is_file() and history.stat().st_size > 0:
+    try:
         async with aiofiles.open(history, "r") as f:
             content = await f.read()
-        try:
-            data: list[Message] = json.loads(content)["history"]
-            logger.info("chat history loaded with success")
-        except json.JSONDecodeError as e:
-            data: list[Message] = []
-            logger.error(
-                f"error during chat history loading: [{e}]"
+            data: list[Message] = json.loads(content).get("history", [])
+            logger.info(
+                "chat history loaded with success",
+                extra={
+                    "doc_id": doc_id
+                }
             )
-    else:
-        data = []
-        logger.info(
-            "no chat history yet (empty)"
+            return {"history": data}
+    except json.JSONDecodeError as e:
+        data: list[Message] = []
+        logger.error(
+            f"error during chat history loading: [{e}]"
         )
-    return {"history": data}
+        raise e
+    except FileNotFoundError as e:
+        logger.error(
+            "chat history file not found",
+            extra={
+                "doc_id": doc_id
+            }
+        )
+        raise e
+    except Exception as e:
+        logger.error(
+            "error during chat history loading",
+            extra={
+                "doc_id": doc_id
+            }
+        )
+        raise e
 
 
 
@@ -186,7 +204,7 @@ async def update_chat_history(doc_id: str,message: Message):
         )
         history = {"history": []}
     finally:
-        history["history"].append(msg_json)
+        history.get("history", []).append(msg_json)
         async with aiofiles.open(history_file, "w") as f:
             await f.write(json.dumps(history))
         return {"status": "ok"}

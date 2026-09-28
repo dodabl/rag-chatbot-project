@@ -8,6 +8,7 @@ import aiofiles
 import asyncio
 from config import UPLOADS_DIR, VECTOR_STORE_DIR
 from logging_config import get_logger, Timer
+import os
 
 logger = get_logger(__name__)
 EMBEDDER = Embedder()
@@ -45,15 +46,19 @@ class PDFIngestor:
 
     
     async def embed_chunks(self, chunks: list[str] | str) -> np.ndarray:
-        embeddings: np.ndarray = await EMBEDDER.encode(chunks)
-        return embeddings
-
+        try:
+            embeddings: np.ndarray = await EMBEDDER.encode(chunks)
+            return embeddings
+        except ValueError as e:
+            logger.error(
+                "empty string passed to embed_chunks()"
+            )
+            raise e
 
     async def create_faiss_index(self, embeddings: np.ndarray) -> faiss.IndexFlatL2:
         index = await asyncio.to_thread(faiss.IndexFlatL2, embeddings.shape[1])
         await asyncio.to_thread(index.add, embeddings)
         return index
-
 
     async def ingest(self):
         async with Timer() as timer:
@@ -64,7 +69,6 @@ class PDFIngestor:
                     "num_chunks": len(chunks)
                 }
             )
-
             embeddings: np.ndarray = await self.embed_chunks(chunks)
             logger.info(
                 "chunks embedded",
@@ -72,7 +76,6 @@ class PDFIngestor:
                     "embedding_dim": embeddings.shape[1]
                 }
             )
-
             index: faiss.IndexFlatL2 = await self.create_faiss_index(embeddings)
             logger.info(
                 "faiss index created",
@@ -80,28 +83,48 @@ class PDFIngestor:
                     "num_vectors": index.ntotal
                 }
             )
+            index_path = VECTOR_STORE_DIR / str(self.doc_id) / "index.faiss"
+            chunks_path = VECTOR_STORE_DIR / str(self.doc_id) / "chunks.json"
+            try:
+                await asyncio.to_thread(faiss.write_index, index, str(index_path))
+                logger.info(
+                    "faiss index written to disk",
+                    extra={
+                        "index_path": index_path
+                    }
+                )
+            except Exception:
+                logger.error(
+                    "could not write FAISS index to disk",
+                    extra={
+                        "doc_id": self.doc_id
+                    }
+                )
+                raise
+            try:
+                async with aiofiles.open(chunks_path, "w", encoding="utf-8") as f:
+                    await f.write(json.dumps(chunks, ensure_ascii=False, indent=2))
+                logger.info(
+                    "chunks written to disk",
+                    extra={
+                        "chunks_path": chunks_path
+                    }
+                )
+            except Exception as e:
+                os.remove(index_path)
+                if chunks_path.is_file():
+                    os.remove(chunks_path)
+                logger.error(
+                    "could not write chunks to disk",
+                    extra={
+                        "doc_id": self.doc_id
+                    }
+                )
+                raise e
         logger.info(
             "Ingestion complete",
             extra={
                 "duration_ms": timer.elapsed_ms,
                 "doc_id": self.doc_id
-            }
-        )
-
-        index_path = VECTOR_STORE_DIR / str(self.doc_id) / "index.faiss"
-        chunks_path = VECTOR_STORE_DIR / str(self.doc_id) / "chunks.json"
-        await asyncio.to_thread(faiss.write_index, index, str(index_path))
-        logger.info(
-            "faiss index written to disk",
-            extra={
-                "index_path": index_path
-            }
-        )
-        async with aiofiles.open(chunks_path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(chunks, ensure_ascii=False, indent=2))
-        logger.info(
-            "chunks written to disk",
-            extra={
-                "chunks_path": chunks_path
             }
         )
