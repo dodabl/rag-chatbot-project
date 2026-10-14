@@ -14,11 +14,18 @@ INGESTOR = PDFIngestor()
 class FileManager():
     def get_file_id(self, file_content: bytes) -> str:
         try:
+            if file_content is None or len(file_content) == 0:
+                raise ValueError("file content is empty")
             id = hashlib.sha256(file_content).hexdigest()[:12]
             logger.debug(
                 "file id generated"
             )
             return id
+        except ValueError as e:
+            logger.error(
+                "file content is empty"
+            )
+            raise e
         except Exception:
             logger.error(
                 "could not generate file id"

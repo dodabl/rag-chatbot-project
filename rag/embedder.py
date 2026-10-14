@@ -22,18 +22,27 @@ class Embedder:
                 "Model loaded successfully."
             )
     async def encode(self, texts: list[str] | str) -> np.ndarray:
-        if texts == "":
-            raise ValueError("empty string")
-        embeddings: np.ndarray = await asyncio.to_thread(
-            self._model.encode,
-            texts,
-            convert_to_numpy=True,
-            convert_to_tensor=False,
-            normalize_embeddings=True    
-        )
-        logger.info(
-            f"Encoded {len(texts) if isinstance(texts, list) else 1} text(s) into embeddings of shape {embeddings.shape}."
-        )
-        if isinstance(texts, str):
-            return np.array(embeddings, dtype=np.float32).reshape(1, -1)
-        return np.array(embeddings, dtype=np.float32)
+        try:
+            if isinstance(texts, str):
+                texts = [texts]
+            texts = [text for text in texts if text.strip()]
+            if not texts:
+                raise ValueError("No valid text to encode")
+
+            embeddings: np.ndarray = await asyncio.to_thread(
+                self._model.encode,
+                texts,
+                convert_to_numpy=True,
+                convert_to_tensor=False,
+                normalize_embeddings=True,
+                precision="float32"  
+            )
+            logger.info(
+                f"Encoded {len(texts) if isinstance(texts, list) else 1} text(s) into embeddings of shape {embeddings.shape}."
+            )
+            return np.array(embeddings, dtype=np.float32)
+        except Exception as e:
+            logger.error(
+                f"failed to encode text: {e}"
+            )
+            raise e

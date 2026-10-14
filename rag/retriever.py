@@ -14,8 +14,9 @@ class Retriever:
         self.embedder = embedder
 
     async def load_index_chunks(self) -> tuple[faiss.Index, dict[int, str]]:
-        index_path = VECTOR_STORE_DIR / f"{self.doc_id}/index.faiss"
-        chunks_path = VECTOR_STORE_DIR / f"{self.doc_id}/chunks.json"
+        vector_store_dir = VECTOR_STORE_DIR / self.doc_id
+        index_path = vector_store_dir / "index.faiss"
+        chunks_path = vector_store_dir / "chunks.json"
         try:
             async with Timer() as t:
                 index = await asyncio.to_thread(faiss.read_index, str(index_path))
@@ -26,14 +27,6 @@ class Retriever:
                     "duration_ms": t.elapsed_ms
                 }
             )
-        except Exception:
-            logger.error(
-                "could not read FAISS index from disk",
-                extra={
-                    "doc_id": self.doc_id
-                }
-            )
-        try:
             async with Timer() as t:
                 async with aiofiles.open(chunks_path, "r", encoding="utf-8") as f:
                     content: str = await f.read()
@@ -45,16 +38,16 @@ class Retriever:
                     "duration_ms": t.elapsed_ms
                 }
             )
+            return index, chunks
         except Exception as e:
             logger.error(
-                "Failed to load chunks",
+                "Failed to load FAISS index or chunks",
                 extra={
                     "doc_id": self.doc_id,
-                    "path": chunks_path
+                    "path": vector_store_dir
                 }
             )
             raise e
-        return index, chunks
     async def embed_query(self, query: str) -> np.ndarray:
         try:
             query_embedding = await self.embedder.encode(query)
