@@ -8,3 +8,5 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from rag.embedder import Embedder
+from rag import PDFIngestor
+from upload_config import FileManager
