@@ -8,7 +8,6 @@ import json
 from logging_config import get_logger, Timer, DEBUG
 
 logger = get_logger(__name__)
-logger.setLevel(DEBUG)
 embedder = Embedder()
 
 class Generator:
@@ -60,19 +59,19 @@ class Generator:
                         if chunk.get("done"):
                             n_tokens = chunk.get("eval_count", 0)
                             break
-                    logger.info(
-                        "Generation complete",
-                        extra={
-                            "duration_ms": timer.elapsed_ms,
-                            "n_tokens": n_tokens,
-                            "model": self.model,
-                        }
-                    )
                 except Exception as e:
                     logger.error(
                         "could not stream response"
                     )
                     raise e
+        logger.info(
+            "Generation complete",
+            extra={
+                "duration_ms": timer.elapsed_ms,
+                "n_tokens": n_tokens,
+                "model": self.model,
+            }
+        )
     async def ollama_check(self) -> bool:
         try:
             response = await self.client.post(f"{OLLAMA_HOST}/api/show", json={
