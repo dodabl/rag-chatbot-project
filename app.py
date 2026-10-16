@@ -23,6 +23,7 @@ templates = Jinja2Templates(directory="templates")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await GENERATOR.ollama_check()
+
     yield
     await GENERATOR.close()
 
@@ -140,7 +141,7 @@ async def get_chat_history(doc_id: str) -> dict[str, list[Message]]:
 async def upload_file(file: UploadFile) -> dict[str, bool | str]:
     if not file.filename:
         return {"status": "error"}
-    exists, doc_id, file_path, index_dir = await MANAGER.store_file(file)
+    doc_id, file_path, index_dir = await MANAGER.store_file(file)
     chunks = index_dir / "chunks.json"
     index = index_dir / "index.faiss"
     try:
@@ -151,7 +152,6 @@ async def upload_file(file: UploadFile) -> dict[str, bool | str]:
         )
         result = {
                 "status": "ok",
-                "exists": exists,
                 "doc_id": doc_id,
                 "filename": file_meta["filename"],
                 "file-path": str(file_path),
@@ -164,7 +164,6 @@ async def upload_file(file: UploadFile) -> dict[str, bool | str]:
         )
         result = {
             "status": "error",
-            "exists": exists,
             "doc_id": doc_id,
             "file_path": file_path,
             "chunks-path": str(chunks),

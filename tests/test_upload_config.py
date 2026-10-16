@@ -26,10 +26,19 @@ async def test_get_file_id_empty_content(upload_config):
 
 
 def test_get_meta_dict(upload_config):
-    file = UploadFile(filename="test.pdf", file=open("fixtures/test_sample.pdf", "rb"))
+    file = UploadFile(file=open("fixtures/test_sample.pdf", "rb"), size=os.path.getsize("fixtures/test_sample.pdf"), filename="test_sample.pdf")
     meta_dict = upload_config.get_meta_dict(file)
     assert isinstance(meta_dict, dict)
     assert "filename" in meta_dict
     assert "size" in meta_dict
     assert "uploaded_at" in meta_dict
 
+def test_get_meta_dict_none_file(upload_config):
+    with pytest.raises(ValueError):
+        upload_config.get_meta_dict(None)
+
+
+def test_get_meta_dict_none_attributes(upload_config):
+    file = UploadFile(file=open("fixtures/test_sample.pdf", "rb"), size=None, filename=None)
+    with pytest.raises(ValueError):
+        upload_config.get_meta_dict(file)
