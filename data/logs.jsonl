@@ -1,0 +1,24 @@
+{"timestamp": "2026-10-20T15:06:27.773302+00:00", "level": "INFO", "logger": "rag.generator", "message": "HTTP client initialized"}
+{"timestamp": "2026-10-20T15:06:27.965190+00:00", "level": "CRITICAL", "logger": "rag.generator", "message": "Error during Ollama health check [ConnectError]"}
+{"timestamp": "2026-10-20T15:14:35.315122+00:00", "level": "INFO", "logger": "rag.generator", "message": "HTTP client initialized"}
+{"timestamp": "2026-10-20T15:14:35.461871+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://localhost:11434/api/show \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-20T15:14:48.053940+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "eca7cc85-2bcd-42aa-9010-645fb19bf7d1", "method": "GET", "url": "/", "status_code": 200, "duration_ms": 2.5}
+{"timestamp": "2026-10-20T15:14:48.193591+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "c99f99b7-df7b-44c6-9f2a-40dce6cadc83", "method": "GET", "url": "/static/style.css", "status_code": 200, "duration_ms": 4.83}
+{"timestamp": "2026-10-20T15:14:48.194675+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "4e7c3521-35cf-430b-8c62-c970e7fe0136", "method": "GET", "url": "/static/chat.js", "status_code": 200, "duration_ms": 5.46}
+{"timestamp": "2026-10-20T15:14:48.320995+00:00", "level": "INFO", "logger": "app", "message": "Documents loading complete"}
+{"timestamp": "2026-10-20T15:14:48.322109+00:00", "level": "INFO", "logger": "app", "message": "Documents loading complete"}
+{"timestamp": "2026-10-20T15:14:48.322995+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "8bc274c5-53a1-4ddb-9924-19783c6d124e", "method": "GET", "url": "/documents", "status_code": 200, "duration_ms": 3.96}
+{"timestamp": "2026-10-20T15:14:48.550842+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "2a5d8817-0277-4e98-9533-e3350f560d6c", "method": "GET", "url": "/favicon.ico", "status_code": 404, "duration_ms": 0.4}
+{"timestamp": "2026-10-20T15:14:50.268476+00:00", "level": "INFO", "logger": "app", "message": "chat history loaded with success", "doc_id": "96b55fc2d282"}
+{"timestamp": "2026-10-20T15:14:50.269295+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "995b7eb5-03d8-46a4-a5e6-a16fa809db45", "method": "GET", "url": "/chat/96b55fc2d282/history", "status_code": 200, "duration_ms": 2.99}
+{"timestamp": "2026-10-20T15:14:51.275093+00:00", "level": "INFO", "logger": "app", "message": "chat history loaded with success", "doc_id": "1042a10adc2b"}
+{"timestamp": "2026-10-20T15:14:51.275885+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "aba20c7c-03e2-48dd-bf15-660de42ea3ba", "method": "GET", "url": "/chat/1042a10adc2b/history", "status_code": 200, "duration_ms": 2.31}
+{"timestamp": "2026-10-20T15:15:39.233116+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "2ef0353f-a02e-4527-b2a0-c88dd087a416", "method": "POST", "url": "/chat/1042a10adc2b/history", "status_code": 200, "duration_ms": 4.36}
+{"timestamp": "2026-10-20T15:15:39.248194+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "0c061dc2-bc48-4251-96c6-7a4e79d2fc4f", "method": "POST", "url": "/chat/1042a10adc2b", "status_code": 200, "duration_ms": 1.73}
+{"timestamp": "2026-10-20T15:15:39.406800+00:00", "level": "INFO", "logger": "rag.retriever", "message": "faiss index loaded to memory", "doc_id": "1042a10adc2b", "duration_ms": 158.81}
+{"timestamp": "2026-10-20T15:15:39.558615+00:00", "level": "INFO", "logger": "rag.retriever", "message": "chunks loaded", "doc_id": "1042a10adc2b", "duration_ms": 77.98}
+{"timestamp": "2026-10-20T15:15:43.024631+00:00", "level": "INFO", "logger": "rag.embedder", "message": "Encoded 1 text(s) into embeddings of shape (1, 384)."}
+{"timestamp": "2026-10-20T15:15:43.024887+00:00", "level": "INFO", "logger": "rag.retriever", "message": "query embedded succesfully"}
+{"timestamp": "2026-10-20T15:15:56.837822+00:00", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://localhost:11434/api/generate \"HTTP/1.1 200 OK\""}
+{"timestamp": "2026-10-20T15:16:20.665608+00:00", "level": "INFO", "logger": "rag.generator", "message": "Generation complete", "duration_ms": 37624.18, "n_tokens": 207, "model": "llama3.2:3b"}
+{"timestamp": "2026-10-20T15:16:20.669965+00:00", "level": "INFO", "logger": "app", "message": "Request handled", "request_id": "1df7c69e-97ec-4070-93fa-27e1eef6f08c", "method": "POST", "url": "/chat/1042a10adc2b/history", "status_code": 200, "duration_ms": 1.5}

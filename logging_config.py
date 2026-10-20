@@ -28,7 +28,7 @@ class JSONFormatter(logging.Formatter):
                 payload[key] = value
         return json.dumps(payload, default=str)
 def setup_logging(level: int = logging.INFO) -> None:
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(open("data/logs.jsonl", "a"))
     handler.setFormatter(JSONFormatter())
 
     root = logging.getLogger()
