@@ -12,6 +12,7 @@ FROM python:3.13.7-slim AS runner
 WORKDIR /app
 COPY --from=builder /app/.venv .venv
 ENV PATH="/app/.venv/bin:$PATH"
+ENV OLLAMA_HOST="http://ollama:11434"
 COPY . .
 RUN useradd -m -u 8888 appuser && chown -R appuser:appuser /app /home/appuser
 USER appuser
